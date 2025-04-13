@@ -1,0 +1,26 @@
+{
+  "name": "walle-web-chat",
+  "version": "1.0.0",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Reinis R. Vāravs",
+  "description": "WALL-E Web Chat - An AI-powered chatbot with knowledge base integration",
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "js-yaml": "^4.1.0",
+    "mammoth": "^1.9.0",
+    "node-fetch": "^3.3.2",
+    "openai": "^4.89.0",
+    "pdfjs-dist": "2.16.105",
+    "pg": "^8.14.1",
+    "xlsx": "^0.18.5"
+  }
+}
