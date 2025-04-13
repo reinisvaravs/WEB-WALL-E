@@ -2,16 +2,14 @@ import express from "express";
 import { getRelevantChunksForMessage } from "../knowledgeEmbedder.js";
 import { buildSystemPrompt } from "../ai/buildSystemPrompt.js";
 import { fetchOpenAIResponse } from "../ai/fetchOpenAIResponse.js";
-import {
-  addToMessageHistory,
-  getFormattedHistory,
-} from "../core/messageMemory.js";
 import { getConfigValue, incrementStat, logUserTokenUsage } from "../db.js";
+import {
+  handleCommand,
+  isCommand,
+  parseCommand,
+} from "../commands/commandHandler.js";
 
 const router = express.Router();
-
-// In-memory storage for web users (you might want to use a proper database in production)
-const webUserSessions = new Map();
 
 // Helper function to sanitize names for OpenAI API
 function sanitizeName(name) {
@@ -21,22 +19,26 @@ function sanitizeName(name) {
 
 router.post("/chat", async (req, res) => {
   try {
-    const { message, sessionId } = req.body;
+    const { message, conversationHistory = [], adminToken } = req.body;
 
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    // Generate a session ID if not provided
-    const currentSessionId = sessionId || Date.now().toString();
+    // Handle commands
+    if (isCommand(message)) {
+      const { command, args } = parseCommand(message);
+      const response = await handleCommand(
+        command,
+        "web-user",
+        args,
+        adminToken
+      );
 
-    // Save user message to history with sanitized name
-    addToMessageHistory(
-      currentSessionId,
-      "user",
-      sanitizeName("Web User"),
-      message
-    );
+      return res.json({
+        response,
+      });
+    }
 
     // Get relevant chunks based on message length
     const msgLength = message.trim().length;
@@ -49,10 +51,11 @@ router.post("/chat", async (req, res) => {
     const relevantChunks = await getRelevantChunksForMessage(message, topK);
     const systemPrompt = buildSystemPrompt(relevantChunks);
 
-    // Get conversation history
+    // Use client-provided conversation history
     const conversation = [
       { role: "system", content: systemPrompt },
-      ...(await getFormattedHistory(currentSessionId)),
+      ...conversationHistory,
+      { role: "user", content: message },
     ];
 
     // Get model configuration
@@ -73,7 +76,7 @@ router.post("/chat", async (req, res) => {
     // Log token usage
     if (response?.usage?.total_tokens) {
       await logUserTokenUsage(
-        currentSessionId,
+        "web-user",
         selectedModel,
         response.usage.total_tokens
       );
@@ -93,22 +96,8 @@ router.post("/chat", async (req, res) => {
       responseMessage = responseMessage.replace(/^WALL-E:\s*/, "");
     }
 
-    // Save bot response to history with sanitized name
-    addToMessageHistory(
-      currentSessionId,
-      "assistant",
-      sanitizeName("WALL-E"),
-      responseMessage
-    );
-
-    // Store session ID for future requests
-    webUserSessions.set(currentSessionId, {
-      lastActivity: Date.now(),
-    });
-
     return res.json({
       response: responseMessage,
-      sessionId: currentSessionId,
     });
   } catch (error) {
     console.error("Chat error:", error);

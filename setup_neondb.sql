@@ -38,12 +38,6 @@ CREATE TABLE IF NOT EXISTS bot_stats (
     value INTEGER NOT NULL DEFAULT 0
 );
 
--- Table for user conversation memory
-CREATE TABLE IF NOT EXISTS user_memory (
-    user_id TEXT PRIMARY KEY,
-    memory JSONB NOT NULL DEFAULT '[]'::jsonb
-);
-
 -- Insert default configuration
 INSERT INTO bot_config (key, value) 
 VALUES ('gpt_model', 'gpt-3.5-turbo')
